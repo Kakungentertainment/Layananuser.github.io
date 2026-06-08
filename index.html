@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Layanan Pelanggan</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+
+<script>
+tailwind.config = {
+    theme: {
+        extend: {
+            colors: {
+                primary: '#0ea5e9',
+                online: '#28A745',
+                bubblePengirim: '#0ea5e9',
+                bubbleLain: '#FFFFFF',
+                teksLabel: '#65676B',
+            }
+        }
+    }
+}
+</script>
+
+<style type="text/tailwindcss">
+@layer utilities {
+
+    /* Pesan sendiri (selalu kanan) */
+    .chat-sendiri {
+        @apply rounded-xl rounded-tr-none ml-auto text-right;
+        background: #0ea5e9;
+        color: white;
+        box-shadow: 0 2px 8px rgba(14,165,233,.25);
+        padding: 8px 10px;
+        font-size: 13px;
+        max-width: 78%;
+        margin-bottom: 6px;
+    }
+
+    /* Pesan orang lain / admin (selalu kiri) */
+    .chat-lain {
+        @apply rounded-xl rounded-tl-none mr-auto text-left;
+        background: rgba(255,255,255,0.95);
+        border: 1px solid rgba(255,255,255,0.6);
+        box-shadow: 0 2px 8px rgba(0,0,0,.08);
+        padding: 8px 10px;
+        font-size: 13px;
+        max-width: 78%;
+        margin-bottom: 6px;
+    }
+
+    .input-chat {
+        @apply border border-gray-200 rounded-full pl-10 pr-4 outline-none;
+        background: rgba(255,255,255,0.95);
+        height: 42px;
+        font-size: 13px;
+        box-shadow: 0 2px 8px rgba(0,0,0,.05);
+    }
+
+    .label-pengirim {
+        font-size: 10px;
+        color: #65676B;
+        margin-bottom: 2px;
+        font-weight: 600;
+    }
+
+    .foto-chat {
+        max-width: 150px;
+        max-height: 180px;
+        border-radius: 10px;
+        margin-top: 2px;
+        border: 2px solid rgba(255,255,255,0.4);
+    }
+
+    .tombol-foto {
+        @apply absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 z-10 flex items-center justify-center;
+        font-size: 18px;
+        width: auto;
+        height: auto;
+        background: transparent;
+        box-shadow: none;
+        border-radius: 0;
+    }
+
+    /* Notifikasi posisi tengah layar seperti gambar */
+    .notifikasi {
+        position: fixed;
+        top: 45%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0,0,0,0.75);
+        color: white;
+        padding: 14px 22px;
+        border-radius: 8px;
+        z-index: 9999;
+        font-size: 14px;
+        display: none;
+        text-align: center;
+        max-width: 85%;
+        line-height: 1.4;
+    }
+}
+
+body {
+    zoom: 0.9;
+}
+
+::-webkit-scrollbar {
+    width: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.5);
+    border-radius: 10px;
+}
+</style>
+</head>
+
+<body
+class="h-screen flex flex-col bg-cover bg-center bg-fixed"
+style="background-image:url('https://cdn.phototourl.com/free/2026-06-06-d1bfb3d1-041e-4c98-8a9d-e2c376805884.png');">
+
+<div id="notifMasuk" class="notifikasi" style="display: block;">Memuat Pesan</div>
+
+<div id="notifKirim" class="notifikasi">✅ Harap tunggu ( No spam ) !!!<br>Pesan dalam proses pengiriman</div>
+
+<div class="fixed inset-0 bg-white/10 backdrop-blur-[1px] -z-10"></div>
+
+<header class="bg-white/75 backdrop-blur-xl text-slate-800 px-3 py-2 flex items-center gap-2 shadow-md border-b border-white/40">
+    <button class="text-slate-700 text-lg mr-1" onclick="window.history.back()">
+        <i class="fa fa-arrow-left"></i>
+    </button>
+    <div class="w-8 h-8 rounded-full bg-sky-500 text-white flex items-center justify-center">
+        <i class="fa fa-headphones"></i>
+    </div>
+    <div class="flex-1">
+        <h2 class="font-medium text-sm">Layanan Pelanggan</h2>
+        <p class="text-[10px] text-gray-600 flex items-center gap-1">
+            <span class="w-2 h-2 rounded-full bg-green-500"></span> Online - Balas segera
+        </p>
+    </div>
+    <button class="text-slate-700 text-sm">
+        <i class="fa fa-volume-up"></i>
+    </button>
+</header>
+
+<main id="chatArea" class="flex-1 overflow-y-auto p-3 flex flex-col bg-white/10 backdrop-blur-sm"></main>
+
+<footer class="p-2 bg-white border-t border-gray-200 shadow-sm" style="padding-bottom:20px;">
+    <div class="absolute inset-x-0 bottom-0 h-16 bg-white/95 -z-10"></div>
+
+    <div class="flex items-center gap-2 relative">
+        <button id="tombolFoto" class="tombol-foto">
+            <i class="fa fa-picture-o"></i>
+            <input type="file" id="inputFoto" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer">
+        </button>
+        <input type="text" id="pesanInput" placeholder="Ketik pesan..." class="input-chat w-full" autocomplete="off">
+        <button id="tombolKirim" class="bg-sky-500 text-white w-10 h-10 rounded-full flex items-center justify-center hover:bg-sky-600 transition-all shadow-md flex-shrink-0">
+            <i class="fa fa-paper-plane"></i>
+        </button>
+    </div>
+</footer>
+
+<script>
+const chatArea = document.getElementById('chatArea');
+const pesanInput = document.getElementById('pesanInput');
+const tombolKirim = document.getElementById('tombolKirim');
+const inputFoto = document.getElementById('inputFoto');
+const notifKirim = document.getElementById('notifKirim');
+const notifMasuk = document.getElementById('notifMasuk');
+
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw8FRySGsbOspS-OtiTTESfSyJcDbYMOLFXSBynKAY34BS-hIAtQEM3pE0H0yOKknc-/exec";
+
+const pesanSambutan = `Selamat datang di Live layanan customer service Kakung Entertainment 🤗
+
+Harap tinggalkan pesan di bawah ini agar kami bisa membalasnya secepat mungkin 🙏
+
+Atau hubungi kami melalui WhatsApp:
++62 838-2469-2223`;
+
+let nomorDasar = localStorage.getItem("nomorDasar");
+let namaPengguna = null;
+let intervalRefresh;
+let sedangMengirim = false;
+let intervalTitikKirim = null; 
+
+// Efek Animasi Titik-Titik Bertambah pada Notifikasi Masuk
+let jumlahTitikMasuk = 0;
+const intervalTitikMasuk = setInterval(() => {
+    jumlahTitikMasuk = (jumlahTitikMasuk + 1) % 4; 
+    notifMasuk.textContent = "Memuat Pesan" + ".".repeat(jumlahTitikMasuk);
+}, 400);
+
+// Sembunyikan notifikasi memuat setelah 5 detik (5000 ms)
+setTimeout(() => {
+    clearInterval(intervalTitikMasuk);
+    notifMasuk.style.display = 'none';
+}, 5000);
+
+if (!nomorDasar) {
+    ambilNomorUserBaru();
+} else {
+    namaPengguna = `USER ${nomorDasar} :`;
+    localStorage.setItem("namaPengguna", namaPengguna);
+}
+
+async function ambilNomorUserBaru() {
+    try {
+        const res = await fetch(`${WEB_APP_URL}?action=getUserNumber`);
+        nomorDasar = await res.json();
+        namaPengguna = `USER ${nomorDasar} :`;
+        localStorage.setItem("nomorDasar", nomorDasar);
+        localStorage.setItem("namaPengguna", namaPengguna);
+    } catch (err) {
+        const acak = Math.floor(Math.random() * 1000);
+        nomorDasar = acak;
+        namaPengguna = `USER ${nomorDasar} :`;
+        localStorage.setItem("nomorDasar", nomorDasar);
+        localStorage.setItem("namaPengguna", namaPengguna);
+    }
+}
+
+function bacaFileGambar(file, callback) {
+    const pembaca = new FileReader();
+    pembaca.onload = e => callback(e.target.result);
+    pembaca.readAsDataURL(file);
+}
+
+async function muatPesan() {
+    if (sedangMengirim) return; 
+    try {
+        const respon = await fetch(`${WEB_APP_URL}?action=getPesan`);
+        const semuaPesan = await respon.json();
+
+        chatArea.innerHTML = '';
+
+        if (!semuaPesan || semuaPesan.length === 0) {
+            const divSambutan = document.createElement('div');
+            divSambutan.className = 'chat-lain';
+            divSambutan.innerHTML = `<p class="label-pengirim">🟢 KAKUNG ENTERTAINMENT :</p><p class="text-gray-900 whitespace-pre-line">${pesanSambutan}</p>`;
+            chatArea.appendChild(divSambutan);
+        } else {
+            semuaPesan.forEach(pesan => {
+                const div = document.createElement('div');
+                const adalahPesanSendiri = pesan.nama && pesan.nama.includes(`USER ${nomorDasar}`);
+
+                if (adalahPesanSendiri) {
+                    div.className = 'chat-sendiri';
+                    if (pesan.jenis === 'foto') {
+                        div.innerHTML = `
+                            <p class="label-pengirim text-right text-white/80">Anda :</p>
+                            <img src="${pesan.isi}" class="foto-chat ml-auto">
+                        `;
+                    } else {
+                        div.innerHTML = `
+                            <p class="label-pengirim text-right text-white/80">Anda :</p>
+                            <p>${pesan.isi}</p>
+                        `;
+                    }
+                } else {
+                    div.className = 'chat-lain';
+                    if (pesan.dari === 'admin') {
+                        
+                        let htmlKutipan = "";
+                        if (pesan.membalas) {
+                            let labelKutipanDinamis = "USER";
+                            
+                            for (let i = semuaPesan.length - 1; i >= 0; i--) {
+                                if (semuaPesan[i].isi === pesan.membalas) {
+                                    const namaPemilikAsli = semuaPesan[i].nama || "";
+                                    
+                                    if (namaPemilikAsli.includes(`USER ${nomorDasar}`)) {
+                                        labelKutipanDinamis = "Anda :";
+                                    } else {
+                                        labelKutipanDinamis = namaPemilikAsli.replace(" :", "").trim() || "USER";
+                                    }
+                                    break;
+                                }
+                            }
+
+                            htmlKutipan = `
+                                <div class="bg-gray-100 border-l-4 border-sky-500 rounded p-1.5 mb-1.5 text-[11px] text-gray-500 block text-left">
+                                    <p class="font-bold text-sky-600 mb-0.5">${labelKutipanDinamis}</p>
+                                    <p class="truncate">${pesan.membalas}</p>
+                                </div>
+                            `;
+                        }
+                        
+                        div.innerHTML = `
+                            <p class="label-pengirim">🟢 KAKUNG ENTERTAINMENT :</p>
+                            ${htmlKutipan}
+                            <p class="text-gray-900">${pesan.isi}</p>
+                        `;
+                    } else {
+                        const namaLain = pesan.nama || "USER :";
+                        div.innerHTML = `
+                            <p class="label-pengirim">${namaLain}</p>
+                            <p class="text-gray-900">${pesan.isi}</p>
+                        `;
+                    }
+                }
+                chatArea.appendChild(div);
+            });
+        }
+        chatArea.scrollTop = chatArea.scrollHeight;
+    } catch (error) {
+        console.error("Gagal memuat pesan:", error);
+    }
+}
+
+// Fungsi tampil notifikasi dengan layout baru serta animasi 7 titik bertambah di baris kedua
+function tampilkanNotifikasi() {
+    clearInterval(intervalTitikKirim); 
+    notifKirim.style.display = 'block';
+    
+    let jumlahTitikKirim = 0;
+    intervalTitikKirim = setInterval(() => {
+        jumlahTitikKirim = (jumlahTitikKirim + 1) % 8;
+        if (jumlahTitikKirim === 0) jumlahTitikKirim = 1; 
+        
+        // innerHTML digunakan agar tag <br> terbaca sebagai baris baru
+        notifKirim.innerHTML = "✅ Harap tunggu ( No spam ) !!!<br>Pesan dalam proses pengiriman" + ".".repeat(jumlahTitikKirim);
+    }, 350); 
+
+    setTimeout(() => { 
+        clearInterval(intervalTitikKirim);
+        notifKirim.style.display = 'none'; 
+    }, 6000); 
+}
+
+async function kirimKeServer(dataPesan) {
+    tampilkanNotifikasi(); 
+    dataPesan.nama = namaPengguna;
+
+    try {
+        sedangMengirim = true; 
+        clearInterval(intervalRefresh); 
+
+        await fetch(WEB_APP_URL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(dataPesan)
+        });
+
+        setTimeout(async () => {
+            sedangMengirim = false;
+            await muatPesan();
+            mulaiAutoRefresh();
+        }, 1000);
+
+    } catch (error) {
+        console.error("Gagal mengirim:", error);
+        sedangMengirim = false;
+        mulaiAutoRefresh();
+    }
+}
+
+function kirimPesanTeks() {
+    const teks = pesanInput.value.trim();
+    if (!teks) return;
+
+    pesanInput.value = '';
+    kirimKeServer({ dari: 'user', jenis: 'teks', isi: teks });
+}
+
+function kirimFoto(file) {
+    bacaFileGambar(file, (dataFoto) => {
+        kirimKeServer({ dari: 'user', jenis: 'foto', isi: dataFoto });
+    });
+}
+
+function mulaiAutoRefresh() {
+    clearInterval(intervalRefresh);
+    intervalRefresh = setInterval(muatPesan, 1000);
+}
+
+tombolKirim.addEventListener('click', kirimPesanTeks);
+pesanInput.addEventListener('keypress', e => { if (e.key === 'Enter') kirimPesanTeks(); });
+inputFoto.addEventListener('change', e => { if (e.target.files?.[0]) { kirimFoto(e.target.files[0]); e.target.value = ''; } });
+
+setTimeout(muatPesan, 500);
+mulaiAutoRefresh();
+</script>
+</body>
+</html>
